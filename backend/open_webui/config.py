@@ -996,6 +996,13 @@ OPENAI_API_BASE_URL = "https://api.openai.com/v1"
 
 
 ####################################
+# Deepgram API
+####################################
+
+DEEPGRAM_API_KEY = os.environ.get("DEEPGRAM_API_KEY", "")
+DEEPGRAM_API_BASE_URL = "https://api.deepgram.com/v1"
+
+####################################
 # MODELS
 ####################################
 
@@ -3153,13 +3160,29 @@ WHISPER_VAD_FILTER = PersistentConfig(
 
 WHISPER_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "").lower() or None
 
-# Add Deepgram configuration
-DEEPGRAM_API_KEY = PersistentConfig(
-    "DEEPGRAM_API_KEY",
-    "audio.stt.deepgram.api_key",
-    os.getenv("DEEPGRAM_API_KEY", ""),
+AUDIO_STT_DEEPGRAM_API_BASE_URL = PersistentConfig(
+    "AUDIO_STT_DEEPGRAM_API_BASE_URL",
+    "audio.stt.deepgram.api_base_url",
+    os.getenv("AUDIO_STT_DEEPGRAM_API_BASE_URL", DEEPGRAM_API_BASE_URL),
 )
 
+AUDIO_STT_DEEPGRAM_API_KEY = PersistentConfig(
+    "AUDIO_STT_DEEPGRAM_API_KEY",
+    "audio.stt.deepgram.api_key",
+    os.getenv("AUDIO_STT_DEEPGRAM_API_KEY", DEEPGRAM_API_KEY),
+)
+
+AUDIO_TTS_DEEPGRAM_API_BASE_URL = PersistentConfig(
+    "AUDIO_TTS_DEEPGRAM_API_BASE_URL",
+    "audio.stt.deepgram.api_base_url",
+    os.getenv("AUDIO_TTS_DEEPGRAM_API_BASE_URL", DEEPGRAM_API_BASE_URL),
+)
+
+AUDIO_TTS_DEEPGRAM_API_KEY = PersistentConfig(
+    "AUDIO_TTS_DEEPGRAM_API_KEY",
+    "audio.stt.deepgram.api_key",
+    os.getenv("AUDIO_TTS_DEEPGRAM_API_KEY", DEEPGRAM_API_KEY),
+)
 
 AUDIO_STT_OPENAI_API_BASE_URL = PersistentConfig(
     "AUDIO_STT_OPENAI_API_BASE_URL",

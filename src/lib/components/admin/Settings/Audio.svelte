@@ -35,6 +35,8 @@
 	let TTS_AZURE_SPEECH_REGION = '';
 	let TTS_AZURE_SPEECH_BASE_URL = '';
 	let TTS_AZURE_SPEECH_OUTPUT_FORMAT = '';
+	let TTS_DEEPGRAM_API_BASE_URL = '';
+	let TTS_DEEPGRAM_API_KEY = '';
 
 	let STT_OPENAI_API_BASE_URL = '';
 	let STT_OPENAI_API_KEY = '';
@@ -47,6 +49,7 @@
 	let STT_AZURE_LOCALES = '';
 	let STT_AZURE_BASE_URL = '';
 	let STT_AZURE_MAX_SPEAKERS = '';
+	let STT_DEEPGRAM_API_BASE_URL = '';
 	let STT_DEEPGRAM_API_KEY = '';
 
 	let STT_WHISPER_MODEL_LOADING = false;
@@ -109,7 +112,9 @@
 				SPLIT_ON: TTS_SPLIT_ON,
 				AZURE_SPEECH_REGION: TTS_AZURE_SPEECH_REGION,
 				AZURE_SPEECH_BASE_URL: TTS_AZURE_SPEECH_BASE_URL,
-				AZURE_SPEECH_OUTPUT_FORMAT: TTS_AZURE_SPEECH_OUTPUT_FORMAT
+				AZURE_SPEECH_OUTPUT_FORMAT: TTS_AZURE_SPEECH_OUTPUT_FORMAT,
+				DEEPGRAM_API_BASE_URL: TTS_DEEPGRAM_API_BASE_URL,
+				DEEPGRAM_API_KEY: TTS_DEEPGRAM_API_KEY,
 			},
 			stt: {
 				OPENAI_API_BASE_URL: STT_OPENAI_API_BASE_URL,
@@ -118,6 +123,7 @@
 				MODEL: STT_MODEL,
 				SUPPORTED_CONTENT_TYPES: STT_SUPPORTED_CONTENT_TYPES.split(','),
 				WHISPER_MODEL: STT_WHISPER_MODEL,
+				DEEPGRAM_API_BASE_URL: STT_DEEPGRAM_API_BASE_URL,
 				DEEPGRAM_API_KEY: STT_DEEPGRAM_API_KEY,
 				AZURE_API_KEY: STT_AZURE_API_KEY,
 				AZURE_REGION: STT_AZURE_REGION,
@@ -170,7 +176,11 @@
 			STT_AZURE_LOCALES = res.stt.AZURE_LOCALES;
 			STT_AZURE_BASE_URL = res.stt.AZURE_BASE_URL;
 			STT_AZURE_MAX_SPEAKERS = res.stt.AZURE_MAX_SPEAKERS;
-			STT_DEEPGRAM_API_KEY = res.stt.DEEPGRAM_API_KEY;
+			
+      STT_DEEPGRAM_API_BASE_URL = res.stt.DEEPGRAM_API_BASE_URL;
+      STT_DEEPGRAM_API_KEY = res.stt.DEEPGRAM_API_KEY;
+      TTS_DEEPGRAM_API_BASE_URL = res.tts.DEEPGRAM_API_BASE_URL;
+      TTS_DEEPGRAM_API_KEY = res.tts.DEEPGRAM_API_KEY;
 		}
 
 		await getVoices();
@@ -262,7 +272,14 @@
 				{:else if STT_ENGINE === 'deepgram'}
 					<div>
 						<div class="mt-1 flex gap-2 mb-1">
-							<SensitiveInput placeholder={$i18n.t('API Key')} bind:value={STT_DEEPGRAM_API_KEY} />
+              <input
+								class="flex-1 w-full bg-transparent outline-hidden"
+								placeholder={$i18n.t('API Base URL (leave blank to use hosted endpoint)')}
+								bind:value={STT_DEEPGRAM_API_BASE_URL}
+								required
+							/>
+
+							<SensitiveInput placeholder={$i18n.t('API Key')} bind:value={STT_DEEPGRAM_API_KEY} required />
 						</div>
 					</div>
 
@@ -280,7 +297,7 @@
 							</div>
 						</div>
 						<div class="mt-2 mb-1 text-xs text-gray-400 dark:text-gray-500">
-							{$i18n.t('Leave model field empty to use the default model.')}
+							{$i18n.t('Leave model field empty to default to Nova-3.')}
 							<a
 								class=" hover:underline dark:text-gray-200 text-gray-800"
 								href="https://developers.deepgram.com/docs/models"
@@ -443,6 +460,7 @@
 							<option value="transformers">{$i18n.t('Transformers')} ({$i18n.t('Local')})</option>
 							<option value="openai">{$i18n.t('OpenAI')}</option>
 							<option value="elevenlabs">{$i18n.t('ElevenLabs')}</option>
+							<option value="deepgram">{$i18n.t('Deepgram')}</option>
 							<option value="azure">{$i18n.t('Azure AI Speech')}</option>
 						</select>
 					</div>
@@ -470,6 +488,19 @@
 								bind:value={TTS_API_KEY}
 								required
 							/>
+						</div>
+					</div>
+      	{:else if TTS_ENGINE === 'deepgram'}
+					<div>
+						<div class="mt-1 flex gap-2 mb-1">
+              <input
+								class="flex-1 w-full bg-transparent outline-hidden"
+								placeholder={$i18n.t('API Base URL (leave blank to use hosted endpoint)')}
+								bind:value={TTS_DEEPGRAM_API_BASE_URL}
+								required
+							/>
+
+							<SensitiveInput placeholder={$i18n.t('API Key')} bind:value={TTS_DEEPGRAM_API_KEY} required />
 						</div>
 					</div>
 				{:else if TTS_ENGINE === 'azure'}

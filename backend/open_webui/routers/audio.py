@@ -162,6 +162,8 @@ class TTSConfigForm(BaseModel):
     AZURE_SPEECH_REGION: str
     AZURE_SPEECH_BASE_URL: str
     AZURE_SPEECH_OUTPUT_FORMAT: str
+    DEEPGRAM_API_BASE_URL: str
+    DEEPGRAM_API_KEY: str
 
 
 class STTConfigForm(BaseModel):
@@ -171,6 +173,7 @@ class STTConfigForm(BaseModel):
     MODEL: str
     SUPPORTED_CONTENT_TYPES: list[str] = []
     WHISPER_MODEL: str
+    DEEPGRAM_API_BASE_URL: str
     DEEPGRAM_API_KEY: str
     AZURE_API_KEY: str
     AZURE_REGION: str
@@ -198,6 +201,8 @@ async def get_audio_config(request: Request, user=Depends(get_admin_user)):
             "AZURE_SPEECH_REGION": request.app.state.config.TTS_AZURE_SPEECH_REGION,
             "AZURE_SPEECH_BASE_URL": request.app.state.config.TTS_AZURE_SPEECH_BASE_URL,
             "AZURE_SPEECH_OUTPUT_FORMAT": request.app.state.config.TTS_AZURE_SPEECH_OUTPUT_FORMAT,
+            "DEEPGRAM_API_BASE_URL": request.app.state.config.AUDIO_TTS_DEEPGRAM_API_BASE_URL,
+            "DEEPGRAM_API_KEY": request.app.state.config.AUDIO_TTS_DEEPGRAM_API_KEY,
         },
         "stt": {
             "OPENAI_API_BASE_URL": request.app.state.config.STT_OPENAI_API_BASE_URL,
@@ -206,7 +211,8 @@ async def get_audio_config(request: Request, user=Depends(get_admin_user)):
             "MODEL": request.app.state.config.STT_MODEL,
             "SUPPORTED_CONTENT_TYPES": request.app.state.config.STT_SUPPORTED_CONTENT_TYPES,
             "WHISPER_MODEL": request.app.state.config.WHISPER_MODEL,
-            "DEEPGRAM_API_KEY": request.app.state.config.DEEPGRAM_API_KEY,
+            "DEEPGRAM_API_BASE_URL": request.app.state.config.AUDIO_STT_DEEPGRAM_API_BASE_URL,
+            "DEEPGRAM_API_KEY": request.app.state.config.AUDIO_STT_DEEPGRAM_API_KEY,
             "AZURE_API_KEY": request.app.state.config.AUDIO_STT_AZURE_API_KEY,
             "AZURE_REGION": request.app.state.config.AUDIO_STT_AZURE_REGION,
             "AZURE_LOCALES": request.app.state.config.AUDIO_STT_AZURE_LOCALES,
@@ -234,6 +240,10 @@ async def update_audio_config(
     request.app.state.config.TTS_AZURE_SPEECH_OUTPUT_FORMAT = (
         form_data.tts.AZURE_SPEECH_OUTPUT_FORMAT
     )
+    request.app.state.config.AUDIO_TTS_DEEPGRAM_API_BASE_URL = (
+        form_data.tts.DEEPGRAM_API_BASE_URL
+    )
+    request.app.state.config.AUDIO_TTS_DEEPGRAM_API_KEY = form_data.tts.DEEPGRAM_API_KEY
 
     request.app.state.config.STT_OPENAI_API_BASE_URL = form_data.stt.OPENAI_API_BASE_URL
     request.app.state.config.STT_OPENAI_API_KEY = form_data.stt.OPENAI_API_KEY
@@ -244,7 +254,10 @@ async def update_audio_config(
     )
 
     request.app.state.config.WHISPER_MODEL = form_data.stt.WHISPER_MODEL
-    request.app.state.config.DEEPGRAM_API_KEY = form_data.stt.DEEPGRAM_API_KEY
+    request.app.state.config.AUDIO_STT_DEEPGRAM_API_BASE_URL = (
+        form_data.stt.DEEPGRAM_API_BASE_URL
+    )
+    request.app.state.config.AUDIO_STT_DEEPGRAM_API_KEY = form_data.stt.DEEPGRAM_API_KEY
     request.app.state.config.AUDIO_STT_AZURE_API_KEY = form_data.stt.AZURE_API_KEY
     request.app.state.config.AUDIO_STT_AZURE_REGION = form_data.stt.AZURE_REGION
     request.app.state.config.AUDIO_STT_AZURE_LOCALES = form_data.stt.AZURE_LOCALES
@@ -264,6 +277,8 @@ async def update_audio_config(
         "tts": {
             "OPENAI_API_BASE_URL": request.app.state.config.TTS_OPENAI_API_BASE_URL,
             "OPENAI_API_KEY": request.app.state.config.TTS_OPENAI_API_KEY,
+            "DEEPGRAM_API_BASE_URL": request.app.state.config.AUDIO_TTS_DEEPGRAM_API_BASE_URL,
+            "DEEPGRAM_API_KEY": request.app.state.config.AUDIO_TTS_DEEPGRAM_API_KEY,
             "API_KEY": request.app.state.config.TTS_API_KEY,
             "ENGINE": request.app.state.config.TTS_ENGINE,
             "MODEL": request.app.state.config.TTS_MODEL,
@@ -280,7 +295,8 @@ async def update_audio_config(
             "MODEL": request.app.state.config.STT_MODEL,
             "SUPPORTED_CONTENT_TYPES": request.app.state.config.STT_SUPPORTED_CONTENT_TYPES,
             "WHISPER_MODEL": request.app.state.config.WHISPER_MODEL,
-            "DEEPGRAM_API_KEY": request.app.state.config.DEEPGRAM_API_KEY,
+            "DEEPGRAM_API_BASE_URL": request.app.state.config.AUDIO_STT_DEEPGRAM_API_BASE_URL,
+            "DEEPGRAM_API_KEY": request.app.state.config.AUDIO_STT_DEEPGRAM_API_KEY,
             "AZURE_API_KEY": request.app.state.config.AUDIO_STT_AZURE_API_KEY,
             "AZURE_REGION": request.app.state.config.AUDIO_STT_AZURE_REGION,
             "AZURE_LOCALES": request.app.state.config.AUDIO_STT_AZURE_LOCALES,
@@ -418,6 +434,62 @@ async def speech(request: Request, user=Depends(get_verified_user)):
                     ssl=AIOHTTP_CLIENT_SESSION_SSL,
                 ) as r:
                     r.raise_for_status()
+
+                    async with aiofiles.open(file_path, "wb") as f:
+                        await f.write(await r.read())
+
+                    async with aiofiles.open(file_body_path, "w") as f:
+                        await f.write(json.dumps(payload))
+
+            return FileResponse(file_path)
+
+        except Exception as e:
+            log.exception(e)
+            detail = None
+
+            try:
+                if r.status != 200:
+                    res = await r.json()
+                    if "error" in res:
+                        detail = f"External: {res['error'].get('message', '')}"
+            except Exception:
+                detail = f"External: {e}"
+
+            raise HTTPException(
+                status_code=getattr(r, "status", 500) if r else 500,
+                detail=detail if detail else "Open WebUI: Server Connection Error",
+            )
+
+    elif request.app.state.config.TTS_ENGINE == "deepgram":
+        voice_id = payload.get("voice", "")
+
+        if voice_id not in get_available_voices(request):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid voice id",
+            )
+
+        try:
+            timeout = aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT)
+            async with aiohttp.ClientSession(
+                timeout=timeout, trust_env=True
+            ) as session:
+                async with session.post(
+                    f"{request.app.state.config.AUDIO_TTS_DEEPGRAM_API_BASE_URL}/speak",
+                    params={"model": voice_id, "encoding": "mp3"},
+                    json={
+                        "text": payload["input"],
+                    },
+                    headers={
+                        "Accept": "audio/mpeg",
+                        "Content-Type": "application/json",
+                        "Authorization": f"Token {request.app.state.config.AUDIO_TTS_DEEPGRAM_API_KEY}",
+                    },
+                    ssl=AIOHTTP_CLIENT_SESSION_SSL,
+                ) as r:
+                    r.raise_for_status()
+
+                    log.debug(f"Deepgram Request ID: {r.headers.get('dg-request-id')}")
 
                     async with aiofiles.open(file_path, "wb") as f:
                         await f.write(await r.read())
@@ -643,35 +715,31 @@ def transcription_handler(request, file_path, metadata):
 
             # Build headers and parameters
             headers = {
-                "Authorization": f"Token {request.app.state.config.DEEPGRAM_API_KEY}",
+                "Authorization": f"Token {request.app.state.config.AUDIO_STT_DEEPGRAM_API_KEY}",
                 "Content-Type": mime,
             }
+            params = {
+                "model": request.app.state.config.STT_MODEL or "nova-3-general",
+                "language": metadata.get("language", "multi"),
+                "smart_format": "true",
+            }
 
-            for language in languages:
-                params = {}
-                if request.app.state.config.STT_MODEL:
-                    params["model"] = request.app.state.config.STT_MODEL
-
-                if language:
-                    params["language"] = language
-
-                # Make request to Deepgram API
-                r = requests.post(
-                    "https://api.deepgram.com/v1/listen?smart_format=true",
-                    headers=headers,
-                    params=params,
-                    data=file_data,
-                )
-
-                if r.status_code == 200:
-                    # Successful transcription
-                    break
+            # Make request to Deepgram API
+            r = requests.post(
+                f"{request.app.state.config.AUDIO_STT_DEEPGRAM_API_BASE_URL}/listen",
+                headers=headers,
+                params=params,
+                data=file_data,
+            )
 
             r.raise_for_status()
             response_data = r.json()
 
             # Extract transcript from Deepgram response
             try:
+                log.debug(
+                    f"Deepgram Request ID: {response_data['metadata']['request_id']}"
+                )
                 transcript = response_data["results"]["channels"][0]["alternatives"][
                     0
                 ].get("transcript", "")
@@ -1094,6 +1162,30 @@ def get_available_voices(request) -> dict:
         except Exception:
             # Avoided @lru_cache with exception
             pass
+    elif request.app.state.config.TTS_ENGINE == "deepgram":
+        try:
+            response = requests.get(
+                f"{request.app.state.config.AUDIO_TTS_DEEPGRAM_API_BASE_URL}/models"
+            )
+            response.raise_for_status()
+            data = response.json()
+            voices_list = data.get("tts", [])
+            available_voices = {
+                voice["canonical_name"]: voice["canonical_name"]
+                for voice in voices_list
+            }
+        except Exception as e:
+            log.error(f"Error fetching voices from endpoint: {str(e)}")
+            available_voices = {
+                "aura-2-thalia-en": "aura-2-thalia-en",
+                "aura-2-odysseus-en": "aura-2-odysseus-en",
+                "aura-2-amalthea-en": "aura-2-amalthea-en",
+                "aura-2-apollo-en": "aura-2-apollo-en",
+                "aura-2-arcas-en": "aura-2-arcas-en",
+                "aura-2-alvaro-es": "aura-2-alvaro-es",
+                "aura-2-celeste-es": "aura-2-celeste-es",
+                "aura-2-aquila-es": "aura-2-aquila-es",
+            }
     elif request.app.state.config.TTS_ENGINE == "azure":
         try:
             region = request.app.state.config.TTS_AZURE_SPEECH_REGION
